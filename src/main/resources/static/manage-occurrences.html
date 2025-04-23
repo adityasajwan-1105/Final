@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Occurrences - TehriMap</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="js/config.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background-color: #1a365d;
+            color: white;
+            padding: 0.5rem;
+            z-index: 1000;
+        }
+
+        .occurrence-list {
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .occurrence-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: white;
+            transition: all 0.2s;
+        }
+
+        .occurrence-item:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-verified {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-rejected {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .photo-count {
+            display: inline-flex;
+            align-items: center;
+            color: #3b82f6;
+            font-size: 0.875rem;
+        }
+
+        .photo-count i {
+            margin-right: 0.25rem;
+        }
+
+        .timestamp {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .reporter-name {
+            color: #6b7280;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .reporter-name i {
+            margin-right: 0.25rem;
+        }
+
+        .view-details-btn {
+            color: #2563eb;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            margin-top: 0.5rem;
+            transition: color 0.2s;
+        }
+
+        .view-details-btn:hover {
+            color: #1d4ed8;
+        }
+
+        .view-details-btn i {
+            margin-left: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="flex items-center justify-between px-4">
+            <div class="flex items-center space-x-8">
+                <span class="text-2xl font-bold">TehriMap</span>
+                <div class="flex space-x-4">
+                    <a href="admin.html" class="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">Add Markers</a>
+                    <a href="manage-markers.html" class="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">Manage Markers</a>
+                    <a href="manage-occurrences.html" class="text-white bg-blue-600 px-3 py-2 rounded-md text-sm font-medium">Manage Occurrences</a>
+                </div>
+            </div>
+            <button id="logoutBtn" class="text-red-400 hover:text-red-300 px-3 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-1 bg-gray-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="p-4">
+                <h1 class="text-xl font-bold mb-4">Occurrences</h1>
+                <div class="flex gap-4 mb-4">
+                    <select id="statusFilter" class="flex-1 p-2 border rounded-md text-sm">
+                        <option value="ALL">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="VERIFIED">Verified</option>
+                        <option value="REJECTED">Rejected</option>
+                    </select>
+                    <select id="sortOrder" class="flex-1 p-2 border rounded-md text-sm">
+                        <option value="NEWEST">Newest First</option>
+                        <option value="OLDEST">Oldest First</option>
+                    </select>
+                </div>
+            </div>
+            <div id="occurrenceList" class="occurrence-list">
+                <!-- Occurrences will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Occurrence Details Modal -->
+    <div id="occurrenceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 id="modalTitle" class="text-xl font-bold"></h3>
+                        <button onclick="closeOccurrenceModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="modalContent" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatDate(dateString) {
+            if (!dateString) return 'Invalid Date';
+            const date = new Date(dateString);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            // Format time
+            const timeString = date.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+
+            // If it's today or yesterday, show relative date
+            if (date.toDateString() === today.toDateString()) {
+                return timeString;
+            } else if (date.toDateString() === yesterday.toDateString()) {
+                return `Yesterday, ${timeString}`;
+            }
+
+            // Otherwise show full date
+            return `${date.toLocaleDateString('en-US', { 
+                month: 'numeric',
+                day: 'numeric',
+                year: 'numeric'
+            })}, ${timeString}`;
+        }
+
+        async function loadOccurrences() {
+            try {
+                const response = await fetch('/api/occurrences', {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const occurrences = await response.json();
+                const occurrencesList = document.getElementById('occurrenceList');
+                
+                // Apply filters and sorting
+                const statusFilter = document.getElementById('statusFilter');
+                const sortOrder = document.getElementById('sortOrder');
+                
+                let filteredOccurrences = [...occurrences];
+                
+                if (statusFilter && statusFilter.value !== 'ALL') {
+                    filteredOccurrences = filteredOccurrences.filter(o => o.status === statusFilter.value);
+                }
+                
+                filteredOccurrences.sort((a, b) => {
+                    const dateA = new Date(a.reportedAt || 0);
+                    const dateB = new Date(b.reportedAt || 0);
+                    return (sortOrder && sortOrder.value === 'OLDEST') ? dateA - dateB : dateB - dateA;
+                });
+                
+                occurrencesList.innerHTML = '';
+                
+                filteredOccurrences.forEach(occurrence => {
+                    const item = document.createElement('div');
+                    item.className = 'occurrence-item';
+                    item.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="status-badge status-${occurrence.status.toLowerCase()}">${occurrence.status}</span>
+                            <span class="timestamp"><i class="far fa-clock mr-1"></i>${formatDate(occurrence.reportedAt)}</span>
+                        </div>
+                        <h3 class="text-lg font-medium mb-1">${occurrence.title}</h3>
+                        <p class="text-gray-600 text-sm mb-2">${occurrence.description}</p>
+                        <div class="flex justify-between items-center">
+                            <span class="reporter-name">
+                                <i class="far fa-user"></i>${occurrence.reporterName || 'Anonymous'}
+                            </span>
+                            ${occurrence.photoIds?.length ? `
+                                <span class="photo-count">
+                                    <i class="fas fa-camera"></i>${occurrence.photoIds.length}
+                                </span>
+                            ` : ''}
+                        </div>
+                        <button onclick="showOccurrenceDetails(${JSON.stringify(occurrence).replace(/"/g, '&quot;')})" 
+                                class="view-details-btn">
+                            View Details <i class="fas fa-chevron-right"></i>
+                        </button>
+                    `;
+                    occurrencesList.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading occurrences:', error);
+                document.getElementById('occurrenceList').innerHTML = `
+                    <div class="p-4 text-center text-red-500">
+                        <p class="text-lg font-semibold">Error loading occurrences</p>
+                        <p class="text-sm mt-2">${error.message}</p>
+                        <button onclick="loadOccurrences()" 
+                                class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function showOccurrenceDetails(occurrence) {
+            const modal = document.getElementById('occurrenceModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+            
+            title.textContent = occurrence.title;
+            
+            const reportedDate = occurrence.reportedAt ? new Date(occurrence.reportedAt).toLocaleString() : 'Not available';
+            const verifiedDate = occurrence.verifiedAt ? new Date(occurrence.verifiedAt).toLocaleString() : 'Not verified';
+            
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Description</label>
+                            <p class="mt-1 text-gray-900">${occurrence.description}</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Reporter Name</label>
+                                <p class="mt-1 text-gray-900">${occurrence.reporterName}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Reporter Phone</label>
+                                <p class="mt-1 text-gray-900">${occurrence.reporterPhone}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Reported At</label>
+                                <p class="mt-1 text-gray-900">${reportedDate}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Status</label>
+                                <p class="mt-1">
+                                    <span class="status-badge status-${occurrence.status.toLowerCase()}">
+                                        ${occurrence.status}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                        ${occurrence.verifiedBy ? `
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Verified By</label>
+                                    <p class="mt-1 text-gray-900">${occurrence.verifiedBy}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Verified At</label>
+                                    <p class="mt-1 text-gray-900">${verifiedDate}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-gray-500">Verification Notes</label>
+                            <textarea id="verificationNotes" class="w-full p-2 border rounded-md" rows="3"
+                                    placeholder="Add verification notes here...">${occurrence.verificationNotes || ''}</textarea>
+                        </div>
+
+                        ${occurrence.photoIds && occurrence.photoIds.length > 0 ? `
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Photos</label>
+                                <div class="grid grid-cols-2 gap-4 mt-2">
+                                    ${occurrence.photoIds.map((_, index) => `
+                                        <div class="relative aspect-w-16 aspect-h-9">
+                                            <img src="/api/occurrences/${occurrence.id}/photos/${index}" 
+                                                 alt="Occurrence photo"
+                                                 class="object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                 onclick="showFullImage('/api/occurrences/${occurrence.id}/photos/${index}')"
+                                            />
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex justify-between pt-4 border-t">
+                            <div class="space-x-2">
+                                <button onclick="updateOccurrenceStatus('${occurrence.id}', 'VERIFIED')" 
+                                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                                    <i class="fas fa-check mr-2"></i>Verify
+                                </button>
+                                <button onclick="updateOccurrenceStatus('${occurrence.id}', 'REJECTED')" 
+                                        class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors">
+                                    <i class="fas fa-times mr-2"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeOccurrenceModal() {
+            document.getElementById('occurrenceModal').classList.add('hidden');
+        }
+
+        async function updateOccurrenceStatus(id, status) {
+            try {
+                const verificationNotes = document.getElementById('verificationNotes')?.value || '';
+                
+                if (status === 'REJECTED') {
+                    // Delete the occurrence if rejected
+                    const deleteResponse = await fetch(`/api/occurrences/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        }
+                    });
+
+                    if (!deleteResponse.ok) {
+                        throw new Error('Failed to delete occurrence');
+                    }
+                } else {
+                    // Update status for non-rejected occurrences
+                    const response = await fetch(`/api/occurrences/${id}/status`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        },
+                        body: new URLSearchParams({
+                            status: status,
+                            verifiedBy: 'admin',
+                            verificationNotes: verificationNotes
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to update status');
+                    }
+                }
+
+                // Close the modal
+                closeOccurrenceModal();
+                
+                // Reload occurrences
+                loadOccurrences();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating occurrence status: ' + error.message);
+            }
+        }
+
+        function showFullImage(imageUrl) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="relative">
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            class="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                    <img src="${imageUrl}" class="max-h-[90vh] max-w-[90vw] object-contain">
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Initialize when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            loadOccurrences();
+
+            // Add event listeners for filters
+            document.getElementById('statusFilter').addEventListener('change', loadOccurrences);
+            document.getElementById('sortOrder').addEventListener('change', loadOccurrences);
+
+            // Add logout functionality
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                sessionStorage.removeItem('token');
+                window.location.href = '/login.html';
+            });
+        });
+    </script>
+</body>
+</html> 

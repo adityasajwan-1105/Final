@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TehriMap - Uttarakhand Location Mapping</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        #map {
+            height: calc(100vh - 112px); /* 64px for navbar + 48px for footer */
+            width: 100%;
+            z-index: 1;
+        }
+        .search-container {
+            position: relative;
+            width: 100%;
+        }
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            outline: none;
+            transition: all 0.2s;
+            background-color: white;
+        }
+        .search-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .search-results.show {
+            display: block;
+        }
+        .search-result-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .search-result-item:hover {
+            background-color: #f3f4f6;
+        }
+        .search-result-item i {
+            margin-right: 0.5rem;
+            color: #4f46e5;
+        }
+        .custom-marker {
+                display: flex;
+                align-items: center;
+            justify-content: center;
+            }
+        .occurrence-marker {
+                display: flex;
+                align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 50%;
+            padding: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .occurrence-popup img:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen bg-gray-100">
+    <!-- Navbar -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-xl font-bold text-gray-800">TehriMap</a>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="/" class="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Home
+                        </a>
+                        <a href="/occurrence.html" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Report Occurrence
+                        </a>
+                    </div>
+                    </div>
+                    
+                <!-- Desktop Search -->
+                <div class="hidden sm:flex items-center relative w-96">
+                    <div class="search-container">
+                        <input type="text" id="desktop-search" 
+                               placeholder="Search Uttarakhand districts..." 
+                               class="search-input"
+                               autocomplete="off">
+                        <div id="desktop-search-results" class="search-results"></div>
+                    </div>
+                </div>
+
+                <!-- Desktop Auth Buttons -->
+                <div class="hidden sm:ml-6 sm:flex sm:items-center" id="desktop-auth-buttons">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="flex items-center sm:hidden">
+                    <button type="button" id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500" aria-expanded="false">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                </button>
+                </div>
+                </div>
+            </div>
+            
+            <!-- Mobile menu -->
+        <div class="sm:hidden hidden" id="mobile-menu">
+            <div class="pt-2 pb-3 space-y-1">
+                <a href="/" class="bg-indigo-50 border-indigo-500 text-indigo-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                    Home
+                </a>
+                <a href="/occurrence.html" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                    Report Occurrence
+                </a>
+                <!-- Mobile Search -->
+                <div class="px-2 pt-2 pb-3">
+                    <div class="search-container">
+                        <input type="text" id="mobile-search" 
+                               placeholder="Search Uttarakhand districts..." 
+                               class="search-input"
+                               autocomplete="off">
+                        <div id="mobile-search-results" class="search-results mt-2"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-4 pb-3 border-t border-gray-200" id="mobile-auth-buttons">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow relative">
+    <!-- Map Container -->
+        <div id="map"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-4 relative z-10">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="text-sm mb-2 md:mb-0">
+                    © 2024 TehriMap. All rights reserved.
+                </div>
+                <div class="flex items-center space-x-6">
+                    <a href="mailto:contact@tehrimap.com" class="text-gray-400 hover:text-white text-sm transition flex items-center">
+                        <i class="fas fa-envelope mr-2"></i>
+                        Contact
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white text-sm transition flex items-center">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        About
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white text-sm transition flex items-center">
+                        <i class="fas fa-headset mr-2"></i>
+                        Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="max-w-4xl mx-auto p-4">
+            <img id="modalImage" src="" alt="Full size image" class="max-h-[90vh] max-w-full">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-white text-2xl">&times;</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="/js/map-data.js"></script>
+    <script>
+        // Initialize map with Uttarakhand center
+        const map = L.map('map').setView([30.0668, 79.0193], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Search functionality
+        function setupSearch(inputId, resultsId) {
+            const input = document.getElementById(inputId);
+            const results = document.getElementById(resultsId);
+            let debounceTimeout;
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(() => {
+                    const query = input.value.toLowerCase().trim();
+                    
+                    if (query.length < 1) {
+                        results.classList.remove('show');
+                        return;
+                    }
+
+                    const matches = districts.filter(district => 
+                        district.name.toLowerCase().includes(query)
+                    );
+
+                    if (matches.length > 0) {
+                        results.innerHTML = matches.map(district => `
+                            <div class="search-result-item" 
+                                 onclick="selectDistrict('${district.name}', ${district.lat}, ${district.lng})">
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${district.name}
+                            </div>
+                        `).join('');
+                        results.classList.add('show');
+                    } else {
+                        results.innerHTML = `
+                            <div class="search-result-item text-gray-500">
+                                <i class="fas fa-info-circle"></i>
+                                No districts found
+                            </div>
+                        `;
+                        results.classList.add('show');
+                    }
+                }, 150); // Debounce delay
+            });
+
+            // Show results on focus if input has value
+            input.addEventListener('focus', () => {
+                if (input.value.trim().length > 0) {
+                    results.classList.add('show');
+                }
+            });
+
+            // Close results when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !results.contains(e.target)) {
+                    results.classList.remove('show');
+                }
+            });
+        }
+
+        function selectDistrict(name, lat, lng) {
+            map.flyTo([lat, lng], 11, {
+                duration: 0.3,
+                easeLinearity: 1,
+                animate: true,
+                noMoveStart: true,
+                zoom: {
+                    animate: true,
+                    duration: 0.2
+                }
+            });
+            
+            document.getElementById('desktop-search-results').classList.remove('show');
+            document.getElementById('mobile-search-results').classList.remove('show');
+            document.getElementById('desktop-search').value = name;
+            document.getElementById('mobile-search').value = name;
+        }
+
+        // Load map data with error handling and loading indicators
+        async function loadMapDataWithRetry() {
+            const maxRetries = 3;
+            let retryCount = 0;
+
+            while (retryCount < maxRetries) {
+                try {
+                    await loadMapData(map);
+                    return;
+                } catch (error) {
+                    console.error(`Attempt ${retryCount + 1} failed:`, error);
+                    retryCount++;
+                    if (retryCount === maxRetries) {
+                        console.error('Failed to load map data after multiple attempts');
+                    } else {
+                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                    }
+                }
+            }
+        }
+
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        mobileMenuButton.addEventListener('click', () => {
+            const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+            mobileMenuButton.setAttribute('aria-expanded', !isExpanded);
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Authentication UI
+        function updateAuthUI() {
+            const token = sessionStorage.getItem('token');
+            const username = sessionStorage.getItem('username');
+            const isAdmin = sessionStorage.getItem('isAdmin') === 'true';
+
+            const desktopAuthButtons = document.getElementById('desktop-auth-buttons');
+            const mobileAuthButtons = document.getElementById('mobile-auth-buttons');
+
+            if (token && username) {
+                // Logged in state
+                const authContent = `
+                    ${isAdmin ? `
+                        <a href="/admin.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                            Admin Dashboard
+                        </a>
+                    ` : ''}
+                    <span class="text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                        ${username}
+                    </span>
+                    <button onclick="logout()" class="ml-2 bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600">
+                        Logout
+                    </button>
+                `;
+
+                desktopAuthButtons.innerHTML = authContent;
+                mobileAuthButtons.innerHTML = `
+                    <div class="space-y-1">
+                        ${isAdmin ? `
+                            <a href="/admin.html" class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100">
+                                Admin Dashboard
+                            </a>
+                        ` : ''}
+                        <div class="px-4 py-2 text-base font-medium text-gray-500">
+                            ${username}
+                        </div>
+                        <button onclick="logout()" class="block w-full text-left px-4 py-2 text-base font-medium text-red-500 hover:text-red-800 hover:bg-gray-100">
+                            Logout
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Logged out state
+                const authContent = `
+                    <a href="/login.html" class="bg-indigo-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-600">
+                        Login
+                    </a>
+                    <a href="/signup.html" class="ml-2 bg-gray-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-600">
+                        Sign Up
+                    </a>
+                `;
+
+                desktopAuthButtons.innerHTML = authContent;
+                mobileAuthButtons.innerHTML = `
+                    <div class="space-y-1">
+                        <a href="/login.html" class="block px-4 py-2 text-base font-medium text-indigo-600 hover:text-indigo-800 hover:bg-gray-100">
+                            Login
+                        </a>
+                        <a href="/signup.html" class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100">
+                            Sign Up
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = '/login.html';
+        }
+
+        // Image modal
+        function showFullImage(url) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modalImg.src = url;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Initialize
+        setupSearch('desktop-search', 'desktop-search-results');
+        setupSearch('mobile-search', 'mobile-search-results');
+        updateAuthUI();
+        loadMapDataWithRetry();
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html> 
