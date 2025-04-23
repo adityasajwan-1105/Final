@@ -1,0 +1,13 @@
+{
+  "name": "tehrimap",
+  "version": "1.0.0",
+  "description": "TehriMap Application",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No build step required' && cp -r public/* dist/",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+} 
