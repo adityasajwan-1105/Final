@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Dashboard - TehriMap</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="js/config.js"></script>
+    <style>
+        body {
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            width: 100%;
+            height: calc(100vh - 64px - 60px); /* Subtract navbar and footer heights */
+            border-radius: 0;
+        }
+
+        .footer {
+            background-color: #1a365d;
+            color: white;
+            padding: 1rem;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 50;
+        }
+
+        .custom-marker {
+            background: none;
+            border: none;
+            text-align: center;
+        }
+        .custom-marker:hover {
+            transform: scale(1.2);
+            transition: transform 0.2s;
+        }
+        .marker-form {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1000;
+        }
+        .nearest-police-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: #1e40af;
+            color: white;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nearest-police-btn:hover {
+            background-color: #1e3a8a;
+        }
+        .nearest-police-btn i {
+            margin-right: 0.5rem;
+        }
+        .marker-list {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            max-height: calc(100vh - 500px);
+            overflow-y: auto;
+        }
+        .marker-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s;
+        }
+        .marker-item:hover {
+            background-color: #f9fafb;
+        }
+        .marker-item:last-child {
+            border-bottom: none;
+        }
+        .delete-btn {
+            padding: 0.5rem 1rem;
+            background-color: #dc2626;
+            color: white;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .delete-btn:hover {
+            background-color: #b91c1c;
+            transform: scale(1.05);
+        }
+        .delete-btn i {
+            font-size: 1rem;
+        }
+        .marker-info {
+            flex: 1;
+            margin-right: 1rem;
+        }
+        .marker-name {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+        .marker-type {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        .marker-icon {
+            font-size: 1.75rem;
+            margin-right: 1rem;
+            display: flex;
+            align-items: center;
+        }
+        .popup-content {
+            padding: 1rem;
+        }
+        .popup-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        .popup-description {
+            margin-bottom: 0.75rem;
+            color: #4b5563;
+        }
+        .popup-type {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 1rem;
+        }
+        .popup-delete {
+            width: 100%;
+            text-align: center;
+            padding: 0.625rem;
+            background-color: #dc2626;
+            color: white;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .popup-delete:hover {
+            background-color: #b91c1c;
+        }
+        .district-search {
+            position: relative;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+        .search-result-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+        .search-result-item:hover {
+            background-color: #f3f4f6;
+        }
+        .search-container {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+            max-width: 800px;
+            margin: 0 1rem;
+        }
+        .search-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            background-color: white;
+            font-size: 0.875rem;
+            color: #374151;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .search-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        .search-select option {
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .search-select option:hover {
+            background-color: #f3f4f6;
+        }
+        .police-search {
+            position: relative;
+            flex: 1;
+        }
+        .police-search-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: #1e40af;
+            color: white;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .police-search-btn:hover {
+            background-color: #1e3a8a;
+        }
+        .police-search-btn i {
+            margin-right: 0.5rem;
+        }
+        .navbar {
+            background-color: #1a365d;
+            color: white;
+            padding: 0.5rem;
+            z-index: 1000;
+        }
+        #map-container {
+            height: calc(100vh - 64px);
+            width: 100%;
+            position: relative;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        @media (max-width: 768px) {
+            body {
+                min-height: -webkit-fill-available;
+            }
+
+            .main-content {
+                height: calc(100vh - 64px - 60px);
+                overflow: hidden;
+            }
+
+            #map {
+                height: 100%;
+            }
+
+            .footer {
+                display: none; /* Hide footer on mobile */
+            }
+
+            .marker-form {
+                max-height: 70vh;
+                bottom: 60px; /* Account for footer */
+            }
+
+            #occurrenceSection {
+                height: calc(100vh - 64px - 60px);
+            }
+
+            .navbar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
+                background-color: #1a365d;
+            }
+            .flex {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .search-container {
+                position: fixed;
+                top: 120px;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 10px;
+                z-index: 999;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin: 0;
+            }
+            .district-search,
+            .police-search {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            .search-select,
+            #policeSearch {
+                width: 100%;
+                height: 40px;
+                margin-bottom: 0.5rem;
+            }
+            .police-search-btn {
+                width: 100%;
+                justify-content: center;
+                height: 40px;
+            }
+            .grid {
+                margin-top: 200px !important;
+                height: calc(100vh - 200px) !important;
+                position: fixed;
+                width: 100%;
+                left: 0;
+                right: 0;
+                bottom: 0;
+            }
+            .marker-form {
+                display: none;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 1rem;
+                border-radius: 1rem 1rem 0 0;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+                z-index: 2000;
+                max-height: 80vh;
+                overflow-y: auto;
+                transform: translateY(100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .marker-form.show {
+                display: block;
+                transform: translateY(0);
+            }
+            .col-span-1 {
+                display: none;
+            }
+            .col-span-3 {
+                width: 100%;
+                height: 100%;
+            }
+            .leaflet-control-zoom {
+                margin-top: 10px !important;
+            }
+            .leaflet-control-attribution {
+                display: none;
+            }
+            #logoutBtn {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 2001;
+                background: #dc2626;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+            .navbar-content {
+                padding: 0;
+            }
+            .navbar-buttons {
+                display: flex;
+                gap: 0.5rem;
+                justify-content: space-between;
+                width: 100%;
+            }
+            .navbar-buttons a,
+            .navbar-buttons button {
+                flex: 1;
+                text-align: center;
+                white-space: nowrap;
+            }
+            footer {
+                display: none;
+            }
+        }
+        .toggle-marker-list {
+            display: none;
+            padding: 0.5rem 1rem;
+            background-color: #1a365d;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 1001;
+        }
+        @media (max-width: 768px) {
+            .toggle-marker-list {
+                display: block;
+            }
+        }
+        /* Add these styles for the modal map */
+        #modalMap {
+            width: 100%;
+            height: 100%;
+            min-height: 300px;
+            z-index: 1;
+        }
+        
+        .modal-map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #occurrenceSection {
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            margin-top: 64px;
+            display: flex;
+            flex-direction: column;
+            background-color: #f3f4f6;
+        }
+        
+        .filters-bar {
+            background-color: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .occurrence-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .occurrence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 768px) {
+            #occurrenceSection {
+                margin-top: 64px;
+                height: calc(100vh - 64px);
+            }
+            
+            .occurrence-content {
+                padding: 0.5rem;
+            }
+            
+            .occurrence-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="flex flex-col md:flex-row w-full gap-4">
+            <div class="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                <span class="text-2xl font-bold text-white">TehriMap</span>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <a href="admin.html" class="text-white px-3 py-2 rounded-md text-sm font-medium bg-blue-600">Add Markers</a>
+                    <a href="manage-markers.html" class="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium">Manage Markers</a>
+                    <a href="#" class="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium" onclick="showOccurrenceSection()">Manage Occurrences</a>
+                </div>
+            </div>
+
+            <div class="search-container">
+                <div class="district-search flex-1">
+                    <div class="relative">
+                        <select id="districtSearch" class="search-select">
+                            <option value="">Select a district...</option>
+                            <option value="all">All Districts</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="police-search flex-1">
+                    <div class="relative">
+                        <input type="text" id="policeSearch" 
+                               placeholder="Search police stations..." 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div id="policeSearchResults" class="search-results"></div>
+                    </div>
+                </div>
+                
+                <button id="findNearestPoliceBtn" class="police-search-btn">
+                    <i class="fas fa-shield-alt"></i>
+                    Find Nearest
+                </button>
+            </div>
+
+            <div class="flex justify-center md:justify-end">
+                <button id="logoutBtn" class="text-red-400 hover:text-red-300 px-3 py-2 rounded-md text-sm font-medium">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 md:grid-cols-4 flex-1">
+            <!-- Marker Form Column -->
+            <div class="col-span-1 overflow-y-auto p-4 order-2 md:order-1 bg-white">
+                <div class="marker-form">
+                    <h2 class="text-xl font-bold mb-4">Add New Marker</h2>
+                    <form id="markerForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Marker Name</label>
+                            <input type="text" id="markerName" required
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea id="markerDescription" required rows="3"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Type</label>
+                            <select id="markerType" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="TOURIST_SPOT">Tourist Spot</option>
+                                <option value="HOSPITAL">Hospital</option>
+                                <option value="SCHOOL">School</option>
+                                <option value="RESTAURANT">Restaurant</option>
+                                <option value="HOTEL">Hotel</option>
+                                <option value="POLICE_STATION">Police Station</option>
+                                <option value="Custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Latitude</label>
+                                <input type="number" id="markerLatitude" step="any" required readonly
+                                       class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Longitude</label>
+                                <input type="number" id="markerLongitude" step="any" required readonly
+                                       class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50">
+                            </div>
+                        </div>
+                        <button type="submit"
+                                class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            <i class="fas fa-plus mr-2"></i>Add Marker
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Map Column -->
+            <div class="col-span-1 md:col-span-3 order-1 md:order-2 relative">
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <!-- Occurrence Section -->
+        <div id="occurrenceSection" class="hidden">
+            <!-- Filters Bar -->
+            <div class="filters-bar">
+                <div class="max-w-[1600px] mx-auto">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <h2 class="text-xl font-bold">Occurrences</h2>
+                        <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+                            <select id="statusFilter" class="p-2 border rounded-lg bg-white min-w-[150px]">
+                                <option value="ALL">All Status</option>
+                                <option value="PENDING">Pending</option>
+                                <option value="VERIFIED">Verified</option>
+                                <option value="REJECTED">Rejected</option>
+                            </select>
+                            <select id="sortOrder" class="p-2 border rounded-lg bg-white min-w-[150px]">
+                                <option value="NEWEST">Newest First</option>
+                                <option value="OLDEST">Oldest First</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="occurrence-content">
+                <div id="occurrenceList" class="occurrence-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-full">
+                <div class="text-sm">© 2024 TehriMap. All rights reserved.</div>
+                <div class="flex items-center space-x-6">
+                    <a href="mailto:contact@tehrimap.com" class="text-gray-400 hover:text-white text-sm transition">
+                        <i class="fas fa-envelope mr-2"></i>Contact
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white text-sm transition">
+                        <i class="fas fa-headset mr-2"></i>Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Update the modal structure -->
+    <div id="occurrenceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[1000] overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen p-2 sm:p-4">
+            <div class="relative bg-white rounded-lg w-full max-w-6xl modal-content">
+                <!-- Modal Header -->
+                <div class="sticky top-0 bg-white p-3 sm:p-4 border-b flex justify-between items-center z-10">
+                    <h2 class="text-xl sm:text-2xl font-bold" id="modalTitle"></h2>
+                    <button onclick="closeOccurrenceModal()" class="text-gray-500 hover:text-gray-700 p-2">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="flex flex-col md:flex-row modal-scroll">
+                    <!-- Left Panel: Details and Photos -->
+                    <div class="md:w-1/2 p-3 sm:p-6 border-b md:border-b-0 md:border-r">
+                        <div id="modalContent"></div>
+                    </div>
+
+                    <!-- Right Panel: Map -->
+                    <div class="md:w-1/2 h-[300px] md:h-[600px]">
+                        <div class="modal-map-container h-full">
+                            <div id="modalMap" class="h-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="js/config.js"></script>
+    <script>
+        // Uttarakhand districts data with coordinates
+        const uttarakhandDistricts = [
+            { name: "Tehri Garhwal", lat: 30.3753, lng: 78.4337 },
+            { name: "Dehradun", lat: 30.3165, lng: 78.0322 },
+            { name: "Haridwar", lat: 29.9457, lng: 78.1642 },
+            { name: "Pauri Garhwal", lat: 30.1469, lng: 78.7808 },
+            { name: "Rudraprayag", lat: 30.2844, lng: 78.9811 },
+            { name: "Chamoli", lat: 30.4227, lng: 79.3286 },
+            { name: "Pithoragarh", lat: 29.5828, lng: 80.2181 },
+            { name: "Almora", lat: 29.5892, lng: 79.6467 },
+            { name: "Nainital", lat: 29.3919, lng: 79.4542 },
+            { name: "Udham Singh Nagar", lat: 28.9610, lng: 79.5152 },
+            { name: "Champawat", lat: 29.3362, lng: 80.0911 },
+            { name: "Bageshwar", lat: 29.8362, lng: 79.7713 },
+            { name: "Uttarkashi", lat: 30.7268, lng: 78.4354 }
+        ];
+
+        let map;
+        let selectedMarker = null;
+        let markers = [];
+        let currentDistrict = null;
+        let policeStations = [];
+        let isDistrictLocked = false;
+
+        const markerIcons = {
+            'TOURIST_SPOT': '🏛️',
+            'HOSPITAL': '🏥',
+            'SCHOOL': '🏫',
+            'RESTAURANT': '🍽️',
+            'HOTEL': '🏨',
+            'POLICE_STATION': '👮',
+            'FIRE_STATION': '🚒',
+            'DEFAULT': '📍'
+        };
+
+        function createCustomIcon(type) {
+            // Check if the type exists in our icons, otherwise use default
+            const iconText = markerIcons[type] || markerIcons.DEFAULT;
+            
+            return L.divIcon({
+                html: `<span style="font-size: 2rem;">${iconText}</span>`,
+                className: 'custom-marker',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+                popupAnchor: [0, -20]
+            });
+        }
+
+        function initMap() {
+            // Initialize map
+            map = L.map('map', {
+                doubleClickZoom: true,
+                zoomControl: true
+            });
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Set initial view to Uttarakhand
+            map.setView([30.0668, 79.0193], 7);
+
+            // Add district markers
+            uttarakhandDistricts.forEach(district => {
+                L.marker([district.lat, district.lng])
+                    .bindPopup(`
+                        <div class="popup-content">
+                            <div class="popup-title">${district.name}</div>
+                        </div>
+                    `)
+                    .on('click', () => selectDistrict(district.name))
+                    .addTo(map);
+            });
+
+            // Initialize district dropdown
+            const districtSelect = document.getElementById('districtSearch');
+            districtSelect.innerHTML = '<option value="">Select a district...</option>';
+            uttarakhandDistricts.forEach(district => {
+                const option = document.createElement('option');
+                option.value = district.name;
+                option.textContent = district.name;
+                districtSelect.appendChild(option);
+            });
+
+            // Check for saved district in sessionStorage
+            const savedDistrict = sessionStorage.getItem('selectedDistrict');
+            if (savedDistrict) {
+                const district = JSON.parse(savedDistrict);
+                currentDistrict = district;
+                document.getElementById('districtSearch').value = district.name;
+                map.setView([district.lat, district.lng], 11);
+            }
+
+            // Add click handler for map to set marker coordinates
+            map.on('click', function(e) {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+                
+                document.getElementById('markerLatitude').value = lat.toFixed(6);
+                document.getElementById('markerLongitude').value = lng.toFixed(6);
+                
+                // On mobile, show the marker form
+                if (window.innerWidth <= 768) {
+                    const markerForm = document.querySelector('.marker-form');
+                    markerForm.classList.add('show');
+                }
+            });
+
+            // Load existing markers
+            loadMarkers();
+        }
+
+        // Update the loadMarkers function
+        async function loadMarkers() {
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/markers`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+
+                if (response.ok) {
+                    const markerData = await response.json();
+                    
+                    // Clear existing markers
+                    markers.forEach(marker => {
+                        if (map && marker) {
+                            map.removeLayer(marker);
+                        }
+                    });
+                    markers = [];
+                    
+                    // Add new markers
+                    markerData.forEach(marker => {
+                        if (!marker.latitude || !marker.longitude) {
+                            console.error('Invalid marker data:', marker);
+                            return;
+                        }
+                        
+                        const mapMarker = L.marker([marker.latitude, marker.longitude], {
+                            icon: createCustomIcon(marker.markerType)
+                        });
+                        
+                        mapMarker.bindPopup(`
+                            <div class="font-bold">${marker.name}</div>
+                            <div>${marker.description}</div>
+                            <div class="text-sm text-gray-600">Type: ${marker.markerType}</div>
+                        `);
+                        
+                        mapMarker.addTo(map);
+                        markers.push(mapMarker);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading markers:', error);
+            }
+        }
+
+        // Initialize map when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            initMap();
+        });
+
+        // Update the selectDistrict function
+        function selectDistrict(districtName) {
+            const district = uttarakhandDistricts.find(d => d.name === districtName);
+            if (district) {
+                currentDistrict = district;
+                
+                // Save to sessionStorage instead of localStorage
+                sessionStorage.setItem('selectedDistrict', JSON.stringify(district));
+                
+                // Update the select element
+                document.getElementById('districtSearch').value = district.name;
+                
+                // Center map on district
+                map.setView([district.lat, district.lng], 11, {
+                    animate: true,
+                    duration: 0.5
+                });
+
+                // Reset police search if exists
+                if (document.getElementById('policeSearch')) {
+                    document.getElementById('policeSearch').value = '';
+                    document.getElementById('policeSearchResults').style.display = 'none';
+                }
+                updatePoliceStationsList();
+            }
+        }
+
+        // Add change event listener to district select
+        document.getElementById('districtSearch').addEventListener('change', function(e) {
+            if (e.target.value) {
+                selectDistrict(e.target.value);
+            }
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById('districtSearch');
+        const searchResults = document.getElementById('searchResults');
+        const policeSearchInput = document.getElementById('policeSearch');
+        const policeSearchResults = document.getElementById('policeSearchResults');
+        const findNearestPoliceBtn = document.getElementById('findNearestPoliceBtn');
+
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const filteredDistricts = uttarakhandDistricts.filter(district => 
+                district.name.toLowerCase().includes(searchTerm)
+            );
+
+            searchResults.style.display = searchTerm ? 'block' : 'none';
+            searchResults.innerHTML = '';
+
+            filteredDistricts.forEach(district => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                div.textContent = district.name;
+                div.addEventListener('click', () => {
+                    selectDistrict(district.name);
+                    searchResults.style.display = 'none';
+                    searchInput.value = district.name;
+                });
+                searchResults.appendChild(div);
+            });
+        });
+
+        // Police station search functionality
+        policeSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            // Filter police stations based on search term
+            const filteredPoliceStations = policeStations.filter(station => 
+                station.name.toLowerCase().includes(searchTerm)
+            );
+
+            // Show/hide search results
+            policeSearchResults.style.display = searchTerm ? 'block' : 'none';
+            
+            // Clear previous results
+            policeSearchResults.innerHTML = '';
+
+            // Add filtered results
+            filteredPoliceStations.forEach(station => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                div.textContent = station.name;
+                div.addEventListener('click', () => {
+                    map.setView([station.latitude, station.longitude], 14);
+                    policeSearchResults.style.display = 'none';
+                    policeSearchInput.value = station.name;
+                    // Find and open the marker popup
+                    const marker = markers.find(m => 
+                        m.getLatLng().lat === station.latitude && 
+                        m.getLatLng().lng === station.longitude
+                    );
+                    if (marker) {
+                        marker.openPopup();
+                    }
+                });
+                policeSearchResults.appendChild(div);
+            });
+        });
+
+        // Update police stations list when district changes
+        function updatePoliceStationsList() {
+            policeStations = [];
+            markers.forEach(marker => {
+                const markerData = marker.getPopup().getContent();
+                if (markerData.includes('POLICE_STATION')) {
+                    const latLng = marker.getLatLng();
+                    // Extract name from popup content
+                    const nameMatch = markerData.match(/<div class="popup-title">(.*?)<\/div>/);
+                    const name = nameMatch ? nameMatch[1] : 'Police Station';
+                    
+                    policeStations.push({
+                        name: name,
+                        latitude: latLng.lat,
+                        longitude: latLng.lng
+                    });
+                }
+            });
+        }
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+            if (!policeSearchInput.contains(e.target) && !policeSearchResults.contains(e.target)) {
+                policeSearchResults.style.display = 'none';
+            }
+        });
+
+        // Find nearest police station button
+        findNearestPoliceBtn.addEventListener('click', () => {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        findNearestPoliceStation(userLat, userLng);
+                    },
+                    (error) => {
+                        console.error('Error getting location:', error);
+                        alert('Please enable location services to use this feature');
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by your browser');
+            }
+        });
+
+        // Add this new function for editing markers
+        function editMarker(marker, markerId) {
+            const popupContent = marker.getPopup().getContent();
+            const nameMatch = popupContent.match(/<div class="popup-title">(.*?)<\/div>/);
+            const descriptionMatch = popupContent.match(/<div class="popup-description">(.*?)<\/div>/s);
+            
+            // Extract the name and description
+            const name = nameMatch ? nameMatch[1] : '';
+            let description = '';
+            if (descriptionMatch && descriptionMatch[1]) {
+                // Convert the HTML content to plain text
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = descriptionMatch[1];
+                description = tempDiv.textContent.trim();
+            }
+
+            // Fill the form with current values
+            document.getElementById('markerName').value = name;
+            document.getElementById('markerDescription').value = description;
+            document.getElementById('markerType').value = 'POLICE_STATION';
+
+            document.getElementById('markerLatitude').value = marker.getLatLng().lat;
+            document.getElementById('markerLongitude').value = marker.getLatLng().lng;
+
+            // Scroll to the form
+            document.querySelector('.marker-form').scrollIntoView({ behavior: 'smooth' });
+
+            // Update the form submit handler to handle edit
+            const form = document.getElementById('markerForm');
+            const originalSubmitHandler = form.onsubmit;
+
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+
+                const updatedMarkerData = {
+                    name: document.getElementById('markerName').value,
+                    description: document.getElementById('markerDescription').value,
+                    markerType: document.getElementById('markerType').value,
+                    latitude: parseFloat(document.getElementById('markerLatitude').value),
+                    longitude: parseFloat(document.getElementById('markerLongitude').value)
+                };
+
+                try {
+                    const response = await fetch(`${config.apiBaseUrl}/api/markers/${markerId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify(updatedMarkerData)
+                    });
+
+                    if (response.ok) {
+                        // Reset form and reload markers
+                        form.reset();
+                        loadMarkers();
+                        // Reset the form submit handler to original
+                        form.onsubmit = originalSubmitHandler;
+                    } else {
+                        const data = await response.json();
+                        alert('Failed to update marker: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Error updating marker:', error);
+                    alert('Error updating marker');
+                }
+            };
+        }
+
+        // Add marker form submission handler
+        document.getElementById('markerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const markerData = {
+                name: document.getElementById('markerName').value,
+                description: document.getElementById('markerDescription').value,
+                markerType: document.getElementById('markerType').value,
+                latitude: parseFloat(document.getElementById('markerLatitude').value),
+                longitude: parseFloat(document.getElementById('markerLongitude').value)
+            };
+
+            // Validate coordinates
+            if (isNaN(markerData.latitude) || isNaN(markerData.longitude)) {
+                alert('Please click on the map to set marker coordinates first');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/markers`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(markerData)
+                });
+
+                if (response.ok) {
+                    document.getElementById('markerForm').reset();
+                    if (selectedMarker) {
+                        map.removeLayer(selectedMarker);
+                        selectedMarker = null;
+                    }
+                    loadMarkers();
+                    alert('Marker added successfully!');
+                    
+                    // On mobile, hide the marker form after successful submission
+                    if (window.innerWidth <= 768) {
+                        const markerForm = document.querySelector('.marker-form');
+                        markerForm.classList.remove('show');
+                    }
+                } else {
+                    const data = await response.json();
+                    alert('Failed to add marker: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error adding marker:', error);
+                alert('Error adding marker: ' + error.message);
+            }
+        });
+
+        // Add deleteMarker function
+        async function deleteMarker(markerId) {
+            if (confirm('Are you sure you want to delete this marker?')) {
+                try {
+                    const response = await fetch(`${config.apiBaseUrl}/api/markers/${markerId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        loadMarkers();
+                    } else {
+                        const data = await response.json();
+                        alert('Failed to delete marker: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Error deleting marker:', error);
+                    alert('Error deleting marker');
+                }
+            }
+        }
+
+        // Add logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            sessionStorage.removeItem('token');
+            window.location.href = '/login.html';
+        });
+
+        let modalMap = null;
+
+        function showOccurrenceDetails(occurrence) {
+            const modal = document.getElementById('occurrenceModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+            
+            title.textContent = occurrence.title;
+            
+            const reportedDate = occurrence.reportedAt ? new Date(occurrence.reportedAt).toLocaleString() : 'Not available';
+            const verifiedDate = occurrence.verifiedAt ? new Date(occurrence.verifiedAt).toLocaleString() : 'Not verified';
+            
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Description</label>
+                            <p class="mt-1 text-gray-900">${occurrence.description}</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Reporter Name</label>
+                                <p class="mt-1 text-gray-900">${occurrence.reporterName}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Reporter Phone</label>
+                                <p class="mt-1 text-gray-900">${occurrence.reporterPhone}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Reported At</label>
+                                <p class="mt-1 text-gray-900">${reportedDate}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Status</label>
+                                <p class="mt-1">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        occurrence.status === 'VERIFIED' ? 'bg-green-100 text-green-800' : 
+                                        occurrence.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 
+                                        'bg-yellow-100 text-yellow-800'
+                                    }">
+                                        ${occurrence.status}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                        ${occurrence.verifiedBy ? `
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Verified By</label>
+                                    <p class="mt-1 text-gray-900">${occurrence.verifiedBy}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Verified At</label>
+                                    <p class="mt-1 text-gray-900">${verifiedDate}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-gray-500">Verification Notes</label>
+                            <textarea id="verificationNotes" class="w-full p-2 border rounded-md" rows="3"
+                                    placeholder="Add verification notes here...">${occurrence.verificationNotes || ''}</textarea>
+                        </div>
+
+                        ${occurrence.photoIds && occurrence.photoIds.length > 0 ? `
+                            <div>
+                                <label class="text-sm font-medium text-gray-500">Photos</label>
+                                <div class="mt-2 grid grid-cols-2 gap-4">
+                                    ${occurrence.photoIds.map((_, index) => `
+                                        <div class="relative group">
+                                            <img src="/api/occurrences/${occurrence.id}/photos/${index}" 
+                                                 alt="Occurrence photo" 
+                                                 class="w-full h-40 object-cover rounded-lg cursor-pointer"
+                                                 onclick="showFullImage('/api/occurrences/${occurrence.id}/photos/${index}')"
+                                            />
+                                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-search-plus text-white opacity-0 group-hover:opacity-100 text-2xl"></i>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex justify-between pt-4 border-t">
+                            <div class="space-x-2">
+                                <button onclick="updateOccurrenceStatus('${occurrence.id}', 'VERIFIED')" 
+                                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                                    <i class="fas fa-check mr-2"></i>Verify
+                                </button>
+                                <button onclick="updateOccurrenceStatus('${occurrence.id}', 'REJECTED')" 
+                                        class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors">
+                                    <i class="fas fa-times mr-2"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+
+            // Initialize or update the map with a slight delay to ensure container is visible
+            setTimeout(() => {
+                if (!modalMap) {
+                    modalMap = L.map('modalMap', {
+                        zoomControl: true,
+                        scrollWheelZoom: true
+                    });
+                    
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(modalMap);
+                }
+
+                modalMap.invalidateSize();
+
+                if (occurrence.latitude && occurrence.longitude) {
+                    modalMap.setView([occurrence.latitude, occurrence.longitude], 13);
+                    
+                    // Clear existing markers
+                    if (modalMap._occurrenceMarker) {
+                        modalMap.removeLayer(modalMap._occurrenceMarker);
+                    }
+                    
+                    // Add new marker with custom icon
+                    modalMap._occurrenceMarker = L.marker([occurrence.latitude, occurrence.longitude], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: '<i class="fas fa-map-marker-alt text-red-500 text-3xl"></i>',
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 30]
+                        })
+                    }).addTo(modalMap);
+                    
+                    // Open popup with occurrence title
+                    modalMap._occurrenceMarker.bindPopup(occurrence.title).openPopup();
+                }
+            }, 100);
+        }
+
+        function closeOccurrenceModal() {
+            document.getElementById('occurrenceModal').classList.add('hidden');
+            // Reset map view when closing modal
+            if (modalMap) {
+                modalMap.setView([30.0668, 79.0193], 7);
+                if (modalMap._occurrenceMarker) {
+                    modalMap.removeLayer(modalMap._occurrenceMarker);
+                }
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('occurrenceModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeOccurrenceModal();
+            }
+        });
+
+        async function loadOccurrences() {
+            try {
+                const response = await fetch('/api/occurrences', {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const occurrences = await response.json();
+                const occurrencesList = document.getElementById('occurrenceList');
+                
+                if (!occurrencesList) {
+                    console.error('Occurrence list element not found');
+                    return;
+                }
+                
+                occurrencesList.innerHTML = '';
+                
+                // Apply filters and sorting
+                const statusFilter = document.getElementById('statusFilter');
+                const sortOrder = document.getElementById('sortOrder');
+                
+                let filteredOccurrences = [...occurrences];
+                
+                if (statusFilter && statusFilter.value !== 'ALL') {
+                    filteredOccurrences = filteredOccurrences.filter(o => o.status === statusFilter.value);
+                }
+                
+                filteredOccurrences.sort((a, b) => {
+                    const dateA = new Date(a.reportedAt || 0);
+                    const dateB = new Date(b.reportedAt || 0);
+                    return (sortOrder && sortOrder.value === 'OLDEST') ? dateA - dateB : dateB - dateA;
+                });
+                
+                if (filteredOccurrences.length === 0) {
+                    occurrencesList.innerHTML = `
+                        <div class="col-span-full text-center py-8 text-gray-500">
+                            <p class="text-lg">No occurrences found</p>
+                            <p class="text-sm mt-2">Change filters to see more results</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                filteredOccurrences.forEach(occurrence => {
+                    const reportedDate = occurrence.reportedAt ? 
+                        new Date(occurrence.reportedAt).toLocaleString() : 'Not available';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200';
+                    card.setAttribute('data-occurrence-id', occurrence.id);
+                    card.innerHTML = `
+                        <div class="p-3 sm:p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    occurrence.status === 'VERIFIED' ? 'bg-green-100 text-green-800' : 
+                                    occurrence.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 
+                                    'bg-yellow-100 text-yellow-800'
+                                }">
+                                    ${occurrence.status || 'PENDING'}
+                                </span>
+                                <span class="text-sm text-gray-500">
+                                    <i class="far fa-clock mr-1"></i>${new Date(reportedDate).toLocaleDateString()}
+                                </span>
+                            </div>
+                            
+                            <h3 class="text-lg font-semibold mb-2 line-clamp-1">${occurrence.title || 'Untitled'}</h3>
+                            <p class="text-gray-600 text-sm mb-3 line-clamp-2">${occurrence.description || 'No description available'}</p>
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center text-gray-500 text-sm">
+                                    <i class="far fa-user mr-1"></i>
+                                    <span class="line-clamp-1">${occurrence.reporterName || 'Anonymous'}</span>
+                                </div>
+                                ${occurrence.photoIds?.length ? `
+                                    <span class="text-blue-600">
+                                        <i class="fas fa-camera"></i> ${occurrence.photoIds.length}
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="border-t px-3 sm:px-4 py-3">
+                            <button onclick="showOccurrenceDetails(${JSON.stringify(occurrence).replace(/"/g, '&quot;')})" 
+                                    class="w-full text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center justify-center">
+                                View Details <i class="fas fa-chevron-right ml-2"></i>
+                            </button>
+                        </div>
+                    `;
+                    occurrencesList.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading occurrences:', error);
+                const occurrencesList = document.getElementById('occurrenceList');
+                if (occurrencesList) {
+                    occurrencesList.innerHTML = `
+                        <div class="col-span-full text-center py-8 text-red-500">
+                            <p class="text-lg font-semibold">Error loading occurrences</p>
+                            <p class="text-sm mt-2">${error.message}</p>
+                            <button onclick="loadOccurrences()" 
+                                    class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Try Again
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Add this function for full image view
+        function showFullImage(imageUrl) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="relative">
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            class="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                    <img src="${imageUrl}" class="max-h-[90vh] max-w-[90vw] object-contain">
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function updateOccurrenceStatus(id, status) {
+            try {
+                const verificationNotes = document.getElementById('verificationNotes')?.value || '';
+                
+                if (status === 'REJECTED') {
+                    // Delete the occurrence if rejected
+                    const deleteResponse = await fetch(`/api/occurrences/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        }
+                    });
+
+                    if (!deleteResponse.ok) {
+                        throw new Error('Failed to delete occurrence');
+                    }
+                } else {
+                    // Update status for non-rejected occurrences
+                    const response = await fetch(`/api/occurrences/${id}/status`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        },
+                        body: new URLSearchParams({
+                            status: status,
+                            verifiedBy: 'admin',
+                            verificationNotes: verificationNotes
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to update status');
+                    }
+                }
+
+                // Close the modal
+                closeOccurrenceModal();
+                
+                // If rejected, animate and remove the card
+                if (status === 'REJECTED') {
+                    const card = document.querySelector(`[data-occurrence-id="${id}"]`);
+                    if (card) {
+                        card.style.transition = 'all 0.5s ease-out';
+                        card.style.transform = 'translateX(100%)';
+                        card.style.opacity = '0';
+                        setTimeout(() => {
+                            card.remove();
+                            // Check if no cards left
+                            const occurrencesList = document.getElementById('occurrenceList');
+                            if (occurrencesList.children.length === 0) {
+                                occurrencesList.innerHTML = `
+                                    <div class="col-span-full text-center py-8 text-gray-500">
+                                        No occurrences found
+                                    </div>
+                                `;
+                            }
+                        }, 500);
+                    }
+                } else {
+                    // For other status updates, just reload the list
+                    loadOccurrences();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating occurrence status: ' + error.message);
+            }
+        }
+
+        function showOccurrenceSection() {
+            // Hide the map and marker form sections
+            document.querySelector('.grid').classList.add('hidden');
+            
+            // Show the occurrence section
+            document.getElementById('occurrenceSection').classList.remove('hidden');
+            
+            // Load occurrences
+            loadOccurrences();
+        }
+
+        // Add event listeners for filters
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listeners for filters when they exist
+            const statusFilter = document.getElementById('statusFilter');
+            const sortOrder = document.getElementById('sortOrder');
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', loadOccurrences);
+            }
+            
+            if (sortOrder) {
+                sortOrder.addEventListener('change', loadOccurrences);
+            }
+        });
+    </script>
+</body>
+</html>

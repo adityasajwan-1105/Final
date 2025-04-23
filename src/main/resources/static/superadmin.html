@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superadmin Dashboard - TehriMap</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="js/config.js"></script>
+    <style>
+        .container {
+            display: flex;
+            min-height: calc(100vh - 64px);
+            max-width: none !important;
+            margin: 0 !important;
+            width: 100%;
+        }
+        .admin-section {
+            width: 300px;
+            padding: 1rem;
+            border-right: 1px solid #e5e7eb;
+            overflow-y: auto;
+            height: calc(100vh - 128px);
+        }
+        .map-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            z-index: 1;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .footer {
+            width: 100%;
+            z-index: 1000;
+            background-color: #111827;
+        }
+        .main-content {
+            padding-bottom: 64px;
+            width: 100%;
+        }
+        .admin-list {
+            margin-bottom: 2rem;
+        }
+        /* Override Tailwind container in footer */
+        .footer .container {
+            max-width: 1280px !important;
+            margin: 0 auto !important;
+            min-height: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .navbar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
+                background: white;
+                padding: 0.5rem;
+            }
+            
+            .navbar > div {
+                flex-direction: column;
+                gap: 1rem;
+                height: auto;
+            }
+            
+            .navbar .flex {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+            }
+            
+            .content-wrapper {
+                padding-top: 60px;
+            }
+            
+            .map-container {
+                height: calc(100vh - 60px);
+                width: 100%;
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+            }
+            
+            #map {
+                height: 100%;
+                width: 100%;
+            }
+            
+            .search-container {
+                position: fixed;
+                top: 70px;
+                left: 10px;
+                right: 10px;
+                z-index: 1000;
+                background: white;
+                padding: 10px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .district-search {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .search-input {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .find-nearest {
+                width: 100%;
+                margin-top: 10px;
+            }
+            
+            .leaflet-control-zoom {
+                margin-top: 120px !important;
+            }
+            
+            .logout-button {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 1000;
+            }
+            
+            .admin-section {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+                margin-top: 64px; /* Account for fixed navbar */
+            }
+            
+            .map-container {
+                height: calc(100vh - 200px);
+                margin-top: 64px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr !important;
+                margin-top: 64px; /* Account for fixed navbar */
+            }
+
+            #map-management-section {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                height: calc(100vh - 60px);
+                overflow: hidden;
+            }
+
+            #map-management-section .grid {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            #map-management-section .col-span-3 {
+                flex: 1;
+                height: 70vh;
+                order: 1;
+            }
+            
+            #map-management-section .col-span-1 {
+                height: 30vh;
+                order: 2;
+                overflow-y: auto;
+                background: white;
+                padding: 1rem;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            #map {
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+
+            .marker-form {
+                height: 100%;
+                overflow-y: auto;
+                padding: 1rem;
+                background: white;
+            }
+
+            .district-search {
+                position: fixed;
+                top: 70px;
+                left: 10px;
+                right: 10px;
+                z-index: 1000;
+            }
+            
+            .search-container {
+                background: white;
+                padding: 10px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .leaflet-control-zoom {
+                margin-top: 120px !important;
+            }
+            
+            .admin-keys-table {
+                font-size: 0.875rem;
+                overflow-x: auto;
+                display: block;
+            }
+            
+            .admin-keys-table th,
+            .admin-keys-table td {
+                padding: 0.5rem;
+                white-space: nowrap;
+            }
+
+            .reports-section {
+                margin-top: 64px;
+                padding: 1rem;
+            }
+
+            .statistics-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .statistics-card {
+                padding: 1rem;
+            }
+        }
+        
+        .custom-marker {
+            background: none;
+            border: none;
+            text-align: center;
+        }
+        .custom-marker:hover {
+            transform: scale(1.2);
+            transition: transform 0.2s;
+        }
+        .tab-active {
+            background-color: #f3f4f6;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .admin-keys-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .admin-keys-table th,
+        .admin-keys-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .admin-keys-table th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+        }
+        .leaflet-popup-content button {
+            margin-top: 8px;
+            padding: 4px 8px;
+            background-color: #ef4444;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .leaflet-popup-content button:hover {
+            background-color: #dc2626;
+        }
+        .district-search {
+            position: relative;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+        .search-result-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+        .search-result-item:hover {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-2">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-blue-600">TehriMap</span>
+                </div>
+
+                <!-- District Search -->
+                <div class="district-search flex-1 max-w-lg w-full">
+                    <div class="relative">
+                        <input type="text" id="districtSearch" 
+                               placeholder="Search Uttarakhand districts..." 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div id="searchResults" class="search-results"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center">
+                    <button id="logoutBtn" class="text-red-600 hover:text-red-800 px-3 py-2 rounded-md text-sm font-medium w-full md:w-auto">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Tab Navigation -->
+    <div class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex flex-col md:flex-row gap-2 md:gap-4 py-2">
+                <button onclick="showSection('admin-keys')" class="px-4 py-2 rounded-lg hover:bg-blue-100 tab-button w-full md:w-auto">Admin Keys</button>
+                <button onclick="showSection('map-management')" class="px-4 py-2 rounded-lg hover:bg-blue-100 tab-button w-full md:w-auto">Map Management</button>
+                <button onclick="showSection('reports')" class="px-4 py-2 rounded-lg hover:bg-blue-100 tab-button w-full md:w-auto">Reports</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content flex-grow">
+        <!-- Admin Management Section -->
+        <div id="admin-keys-section" class="p-6">
+            <div class="max-w-7xl mx-auto">
+                <div class="bg-gray-50 p-6 rounded-lg shadow-lg">
+                    <div class="flex justify-between items-center mb-6 flex-col md:flex-row gap-4">
+                        <h2 class="text-2xl font-bold text-gray-800">Admin Management</h2>
+                        <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                            <button type="button" onclick="generateRandomAdmin()" 
+                                    class="w-full md:w-auto inline-flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                <i class="fas fa-robot mr-2"></i>
+                                Generate Random Admin
+                            </button>
+                            <button type="button" onclick="showCustomAdminModal()" 
+                                    class="w-full md:w-auto inline-flex items-center justify-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                <i class="fas fa-user-plus mr-2"></i>
+                                Create Custom Admin
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Admin List Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTableBody" class="divide-y divide-gray-200">
+                                <!-- Admin list will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Management Section -->
+        <div id="map-management-section" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4">
+                <!-- Map Container -->
+                <div class="col-span-1 md:col-span-3 order-1 md:order-2">
+                    <div id="map" class="h-[75vh] md:h-[calc(100vh-150px)] rounded-lg shadow"></div>
+                </div>
+                
+                <!-- Marker Form Column -->
+                <div class="col-span-1 bg-gray-50 p-4 rounded-lg shadow order-2 md:order-1">
+                    <h2 class="text-xl font-bold mb-4">Add New Marker</h2>
+                    <form id="markerForm" class="space-y-4">
+                        <div>
+                            <label for="markerName" class="block text-sm font-medium text-gray-700">Marker Name</label>
+                            <input type="text" id="markerName" required
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="markerDescription" class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea id="markerDescription" required
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label for="markerType" class="block text-sm font-medium text-gray-700">Type</label>
+                            <select id="markerType" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="TOURIST_SPOT">Tourist Spot</option>
+                                <option value="HOSPITAL">Hospital</option>
+                                <option value="SCHOOL">School</option>
+                                <option value="RESTAURANT">Restaurant</option>
+                                <option value="HOTEL">Hotel</option>
+                                <option value="POLICE_STATION">Police Station</option>
+                                <option value="CUSTOM">Custom</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="markerLatitude" class="block text-sm font-medium text-gray-700">Latitude</label>
+                                <input type="number" id="markerLatitude" step="any" required readonly
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="markerLongitude" class="block text-sm font-medium text-gray-700">Longitude</label>
+                                <input type="number" id="markerLongitude" step="any" required readonly
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="button" id="clearSelectionBtn" onclick="clearMarkerSelection()"
+                                    class="w-1/2 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                Clear Selection
+                            </button>
+                            <button type="submit"
+                                    class="w-1/2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                Add Marker
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Section -->
+        <div id="reports-section" class="hidden p-6">
+            <div class="max-w-7xl mx-auto">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Total Users Card -->
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Users</h3>
+                        <div class="flex items-center">
+                            <i class="fas fa-users text-3xl text-blue-500 mr-3"></i>
+                            <span id="totalUsers" class="text-2xl font-bold">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Total Admins Card -->
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Admins</h3>
+                        <div class="flex items-center">
+                            <i class="fas fa-user-shield text-3xl text-green-500 mr-3"></i>
+                            <span id="totalAdmins" class="text-2xl font-bold">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Total Markers Card -->
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Markers</h3>
+                        <div class="flex items-center">
+                            <i class="fas fa-map-marker-alt text-3xl text-red-500 mr-3"></i>
+                            <span id="totalMarkers" class="text-2xl font-bold">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users and Admins Section -->
+                <div class="grid grid-cols-1 gap-6 mb-8">
+                    <!-- Users List -->
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <div class="p-6 border-b">
+                            <h3 class="text-xl font-semibold text-gray-800">System Users</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- Users will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Markers by Admin Table -->
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <div class="p-6 border-b">
+                            <h3 class="text-xl font-semibold text-gray-800">Markers by Admin</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin Name</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Markers</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Added</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marker Types</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="markersByAdminTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- Data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white w-full mt-auto">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-sm text-center md:text-left">
+                    © 2024 TehriMap. All rights reserved.
+                </div>
+                <div class="flex flex-col md:flex-row items-center gap-4">
+                    <a href="mailto:contact@tehrimap.com" class="text-gray-400 hover:text-white text-sm transition flex items-center justify-center w-full md:w-auto">
+                        <i class="fas fa-envelope mr-2"></i>Contact
+                    </a>
+                    <button class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 w-full md:w-auto">
+                        <i class="fas fa-headset mr-2"></i>Support
+                    </button>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Custom Key Modal -->
+    <div id="customKeyModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <h3 class="text-lg font-bold mb-4">Create Custom Admin Key</h3>
+            <form id="customKeyForm" class="space-y-4">
+                <div>
+                    <label for="customKey" class="block text-sm font-medium text-gray-700">Custom Key</label>
+                    <input type="text" id="customKey" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideCustomKeyModal()" 
+                            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        Create
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Admin Modal -->
+    <div id="customAdminModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-96">
+            <h3 class="text-lg font-bold mb-4">Create Custom Admin</h3>
+            <form id="customAdminForm" class="space-y-4">
+                <div>
+                    <label for="customUsername" class="block text-sm font-medium text-gray-700">Username</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-user text-gray-400"></i>
+                        </div>
+                        <input type="text" id="customUsername" required
+                               class="pl-10 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="customEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-envelope text-gray-400"></i>
+                        </div>
+                        <input type="email" id="customEmail" required
+                               class="pl-10 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="customAdminId" class="block text-sm font-medium text-gray-700">Admin ID</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-id-card text-gray-400"></i>
+                        </div>
+                        <input type="text" id="customAdminId" required
+                               class="pl-10 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="customPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-gray-400"></i>
+                        </div>
+                        <input type="text" id="customPassword" required
+                               class="pl-10 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideCustomAdminModal()" 
+                            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        Create
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script>
+        let map = null;
+        let selectedMarker = null;
+        let markers = [];
+        let markerData = [];
+        let currentUserId = null;
+        let activeSection = 'admin-keys';
+
+        // Custom emoji icons for different marker types
+        const markerIcons = {
+            TOURIST_SPOT: '🏛️',
+            HOSPITAL: '🏥',
+            SCHOOL: '🏫',
+            RESTAURANT: '🍽️',
+            HOTEL: '🏨',
+            POLICE_STATION: '👮',
+            CUSTOM: '📍'
+        };
+
+        // Create custom icon for marker
+        function createCustomIcon(type) {
+            return L.divIcon({
+                html: `<span style="font-size: 2rem;">${markerIcons[type] || '📍'}</span>`,
+                className: 'custom-marker',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+                popupAnchor: [0, -20]
+            });
+        }
+
+        // Show/Hide sections
+        function showSection(sectionName) {
+            // Hide all sections
+            document.getElementById('admin-keys-section').classList.add('hidden');
+            document.getElementById('map-management-section').classList.add('hidden');
+            document.getElementById('reports-section').classList.add('hidden');
+
+            // Show selected section
+            document.getElementById(`${sectionName}-section`).classList.remove('hidden');
+
+            // Update active tab
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('tab-active');
+                if (button.textContent.toLowerCase().includes(sectionName)) {
+                    button.classList.add('tab-active');
+                }
+            });
+
+            // Load section-specific data
+            if (sectionName === 'map-management') {
+                if (!map) {
+                    initMap();
+                } else {
+                    setTimeout(() => {
+                        map.invalidateSize();
+                        loadMarkers();
+                    }, 100);
+                }
+            } else if (sectionName === 'admin-keys') {
+                loadAdmins();
+            } else if (sectionName === 'reports') {
+                loadReports();
+            }
+        }
+
+        // Initialize map
+        function initMap() {
+            if (map) {
+                map.remove();
+            }
+
+            const mapContainer = document.getElementById('map');
+            if (!mapContainer) {
+                console.error('Map container not found');
+                return;
+            }
+
+            // Center coordinates for Uttarakhand (more central location)
+            const uttarakhandCenter = [30.0668, 79.0193]; // Updated coordinates to center of Uttarakhand
+            map = L.map('map', {
+                center: uttarakhandCenter,
+                zoom: 7.5,
+                minZoom: 7,
+                maxBounds: [
+                    [28.5, 77.0], // Southwest coordinates
+                    [31.5, 81.0]  // Northeast coordinates
+                ]
+            });
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Add district markers
+            uttarakhandDistricts.forEach(district => {
+                L.marker([district.lat, district.lng], {
+                    icon: L.divIcon({
+                        html: `<span style="font-size: 1.5rem;">📍</span>`,
+                        className: 'custom-marker',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 30],
+                        popupAnchor: [0, -30]
+                    })
+                })
+                    .bindPopup(`<b>${district.name}</b>`)
+                    .addTo(map);
+            });
+
+            map.on('click', function(e) {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+                
+                document.getElementById('markerLatitude').value = lat.toFixed(6);
+                document.getElementById('markerLongitude').value = lng.toFixed(6);
+                
+                if (selectedMarker) {
+                    map.removeLayer(selectedMarker);
+                }
+                
+                selectedMarker = L.marker([lat, lng], {
+                    icon: createCustomIcon(document.getElementById('markerType').value)
+                }).addTo(map);
+            });
+
+            setTimeout(() => {
+                map.invalidateSize();
+                loadMarkers();
+            }, 100);
+        }
+
+        // Load markers
+        async function loadMarkers() {
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/markers`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load markers');
+                }
+
+                const data = await response.json();
+                
+                // Clear existing markers
+                markers.forEach(marker => {
+                    if (map && marker) {
+                        map.removeLayer(marker);
+                    }
+                });
+                markers = [];
+                
+                data.forEach(marker => {
+                    const mapMarker = L.marker([marker.latitude, marker.longitude], {
+                        icon: createCustomIcon(marker.markerType)
+                    });
+                    
+                    mapMarker.bindPopup(`
+                        <div class="font-bold">${marker.name}</div>
+                        <div>${marker.description}</div>
+                        <div class="text-sm text-gray-600">Type: ${marker.markerType}</div>
+                        <button onclick="deleteMarker('${marker.id}')" class="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                            Delete
+                        </button>
+                    `);
+                    
+                    mapMarker.addTo(map);
+                    markers.push(mapMarker);
+                });
+            } catch (error) {
+                console.error('Error loading markers:', error);
+            }
+        }
+
+        // Delete marker
+        async function deleteMarker(markerId) {
+            if (!confirm('Are you sure you want to delete this marker?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/markers/${markerId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+
+                if (response.ok) {
+            loadMarkers();
+                } else {
+                    alert('Failed to delete marker');
+                }
+            } catch (error) {
+                console.error('Error deleting marker:', error);
+                alert('Error deleting marker');
+            }
+        }
+
+        // Handle marker form submission
+        document.getElementById('markerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('markerName').value,
+                description: document.getElementById('markerDescription').value,
+                markerType: document.getElementById('markerType').value,
+                latitude: parseFloat(document.getElementById('markerLatitude').value),
+                longitude: parseFloat(document.getElementById('markerLongitude').value)
+            };
+
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/markers`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    e.target.reset();
+                    if (selectedMarker) {
+                        map.removeLayer(selectedMarker);
+                        selectedMarker = null;
+                    }
+                    loadMarkers();
+                } else {
+                    alert('Failed to add marker');
+                }
+            } catch (error) {
+                console.error('Error adding marker:', error);
+                alert('Error adding marker');
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Set initial active tab and show admin-keys section by default
+            document.querySelector('.tab-button').classList.add('tab-active');
+            showSection('admin-keys');
+        });
+
+        // Fetch and display admin list
+        async function loadAdmins() {
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/auth/admins`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const admins = await response.json();
+                    const adminTableBody = document.getElementById('adminTableBody');
+                    adminTableBody.innerHTML = '';
+                    
+                    if (admins.length === 0) {
+                        adminTableBody.innerHTML = `
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                    No admins found. Use the buttons above to create one.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    admins.forEach(admin => {
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">${admin.adminId || 'N/A'}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-user-circle text-2xl text-gray-400"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">${admin.username}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">${admin.email}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button onclick="deleteAdmin('${admin.id}')" 
+                                        class="text-red-600 hover:text-red-900 flex items-center justify-end">
+                                    <i class="fas fa-trash-alt mr-1"></i>
+                                    Delete
+                                </button>
+                            </td>
+                        `;
+                        adminTableBody.appendChild(row);
+                    });
+                } else {
+                    const error = await response.text();
+                    console.error('Failed to load admins:', error);
+                    throw new Error('Failed to load admin list');
+                }
+            } catch (error) {
+                console.error('Error loading admins:', error);
+                const adminTableBody = document.getElementById('adminTableBody');
+                adminTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-red-500">
+                            Error loading admin list. Please try again later.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Delete admin
+        async function deleteAdmin(adminId) {
+            if (!confirm('Are you sure you want to delete this admin?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/auth/admins/${adminId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+                
+                if (response.ok) {
+                    await loadAdmins(); // Refresh the admin list
+                    alert('Admin deleted successfully');
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete admin');
+                }
+            } catch (error) {
+                console.error('Error deleting admin:', error);
+                alert(error.message || 'Error deleting admin');
+            }
+        }
+
+        // Create admin
+        async function createAdmin(adminData) {
+            try {
+                console.log('Creating admin with data:', adminData);
+                const response = await fetch(`${config.apiBaseUrl}/api/auth/create-admin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        username: adminData.username,
+                        email: adminData.email,
+                        password: adminData.password,
+                        adminId: adminData.adminId
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to create admin');
+                }
+
+                console.log('Admin created successfully:', data);
+                await loadAdmins(); // Refresh admin list
+                return true;
+            } catch (error) {
+                console.error('Error creating admin:', error);
+                alert(error.message || 'Error creating admin');
+                return false;
+            }
+        }
+
+        // Generate random admin credentials
+        async function generateRandomAdmin() {
+            try {
+                const prefix = 'ADM';
+                const timestamp = new Date().getTime().toString().slice(-4);
+                const random = Math.random().toString(36).substring(2, 4).toUpperCase();
+                const adminId = `${prefix}-${timestamp}-${random}`;
+                
+                // Generate random password (12 characters)
+                const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+                let password = "";
+                for (let i = 0; i < 12; i++) {
+                    password += charset.charAt(Math.floor(Math.random() * charset.length));
+                }
+
+                // Generate username and email with more randomness
+                const randomSuffix = Math.random().toString(36).substring(2, 6);
+                const username = `admin_${timestamp}${randomSuffix}`;
+                const email = `${username}@tehrimap.com`;
+
+                // Create admin with generated credentials
+                const adminData = {
+                    username: username,
+                    email: email,
+                    adminId: adminId,
+                    password: password
+                };
+
+                console.log('Attempting to create admin with data:', adminData);
+                const success = await createAdmin(adminData);
+                
+                if (success) {
+                    alert(`New Admin Created Successfully!\n\n` +
+                          `Username: ${username}\n` +
+                          `Admin ID: ${adminId}\n` +
+                          `Password: ${password}\n` +
+                          `Email: ${email}\n\n` +
+                          `Please save these credentials securely!`);
+                }
+            } catch (error) {
+                console.error('Error in generateRandomAdmin:', error);
+                alert('Failed to generate admin: ' + error.message);
+            }
+        }
+
+        // Show/Hide custom admin modal
+        function showCustomAdminModal() {
+            const modal = document.getElementById('customAdminModal');
+            if (!modal) {
+                console.error('Custom admin modal not found');
+                return;
+            }
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+            generateRandomId();
+        }
+
+        function hideCustomAdminModal() {
+            const modal = document.getElementById('customAdminModal');
+            if (!modal) {
+                console.error('Custom admin modal not found');
+                return;
+            }
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            document.getElementById('customAdminForm').reset();
+        }
+
+        // Handle custom admin form submission
+        document.getElementById('customAdminForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const adminData = {
+                username: document.getElementById('customUsername').value,
+                email: document.getElementById('customEmail').value,
+                adminId: document.getElementById('customAdminId').value,
+                password: document.getElementById('customPassword').value
+            };
+
+            console.log('Submitting custom admin form with data:', adminData);
+            const success = await createAdmin(adminData);
+            if (success) {
+                hideCustomAdminModal();
+            }
+        });
+
+        // Generate random admin ID for custom admin form
+        function generateRandomId() {
+            const prefix = 'ADM';
+            const timestamp = new Date().getTime().toString().slice(-4);
+            const random = Math.random().toString(36).substring(2, 4).toUpperCase();
+            const adminId = `${prefix}-${timestamp}-${random}`;
+            
+            const adminIdInput = document.getElementById('customAdminId');
+            if (adminIdInput) {
+                adminIdInput.value = adminId;
+            } else {
+                console.error('Admin ID input field not found');
+            }
+        }
+
+        // Clear marker selection
+        function clearMarkerSelection() {
+                    if (selectedMarker) {
+                        map.removeLayer(selectedMarker);
+                        selectedMarker = null;
+                    }
+            document.getElementById('markerLatitude').value = '';
+            document.getElementById('markerLongitude').value = '';
+        }
+
+        // Handle logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            sessionStorage.removeItem('token');
+            window.location.href = '/login.html';
+        });
+
+        // Custom Key Modal
+        function showCustomKeyModal() {
+            const modal = document.getElementById('customKeyModal');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+        }
+
+        function hideCustomKeyModal() {
+            const modal = document.getElementById('customKeyModal');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            document.getElementById('customKeyForm').reset();
+        }
+
+        // Uttarakhand districts data with coordinates
+        const uttarakhandDistricts = [
+            { name: "Tehri Garhwal", lat: 30.3753, lng: 78.4337 },
+            { name: "Dehradun", lat: 30.3165, lng: 78.0322 },
+            { name: "Haridwar", lat: 29.9457, lng: 78.1642 },
+            { name: "Pauri Garhwal", lat: 30.1469, lng: 78.7808 },
+            { name: "Rudraprayag", lat: 30.2844, lng: 78.9811 },
+            { name: "Chamoli", lat: 30.4227, lng: 79.3286 },
+            { name: "Pithoragarh", lat: 29.5828, lng: 80.2181 },
+            { name: "Almora", lat: 29.5892, lng: 79.6467 },
+            { name: "Nainital", lat: 29.3919, lng: 79.4542 },
+            { name: "Udham Singh Nagar", lat: 28.9610, lng: 79.5152 },
+            { name: "Champawat", lat: 29.3362, lng: 80.0911 },
+            { name: "Bageshwar", lat: 29.8362, lng: 79.7713 },
+            { name: "Uttarkashi", lat: 30.7268, lng: 78.4354 }
+        ];
+
+        // Search functionality
+        const searchInput = document.getElementById('districtSearch');
+        const searchResults = document.getElementById('searchResults');
+
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const filteredDistricts = uttarakhandDistricts.filter(district => 
+                district.name.toLowerCase().includes(searchTerm)
+            );
+
+            // Show/hide search results
+            searchResults.style.display = searchTerm ? 'block' : 'none';
+            
+            // Clear previous results
+            searchResults.innerHTML = '';
+
+            // Add filtered results
+            filteredDistricts.forEach(district => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                div.textContent = district.name;
+                div.addEventListener('click', () => {
+                    map.setView([district.lat, district.lng], 11);
+                    searchResults.style.display = 'none';
+                    searchInput.value = district.name;
+                });
+                searchResults.appendChild(div);
+            });
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        // Add loadReports function
+        async function loadReports() {
+            try {
+                // Load users statistics
+                const statsResponse = await fetch(`${config.apiBaseUrl}/api/auth/statistics`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+
+                if (!statsResponse.ok) {
+                    throw new Error('Failed to load statistics');
+                }
+
+                const stats = await statsResponse.json();
+                document.getElementById('totalUsers').textContent = stats.totalUsers || '0';
+                document.getElementById('totalAdmins').textContent = stats.totalAdmins || '0';
+                document.getElementById('totalMarkers').textContent = stats.totalMarkers || '0';
+
+                // Load all users
+                const usersResponse = await fetch(`${config.apiBaseUrl}/api/auth/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+
+                if (!usersResponse.ok) {
+                    throw new Error('Failed to load users');
+                }
+
+                const users = await usersResponse.json();
+                const usersTable = document.getElementById('usersTable');
+                usersTable.innerHTML = '';
+
+                if (users.length === 0) {
+                    usersTable.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                                No users found
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    users.forEach(user => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-user-circle text-gray-400"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">${user.username}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">${user.email}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-800' : user.role === 'ADMIN' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                                    ${user.role}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${new Date(user.createdAt).toLocaleDateString()}
+                            </td>
+                        `;
+                        usersTable.appendChild(row);
+                    });
+                }
+
+                // Load markers by admin statistics
+                const markersResponse = await fetch(`${config.apiBaseUrl}/api/auth/markers-by-admin`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    }
+                });
+
+                if (!markersResponse.ok) {
+                    throw new Error('Failed to load markers by admin');
+                }
+
+                const markerStats = await markersResponse.json();
+                const tableBody = document.getElementById('markersByAdminTable');
+                tableBody.innerHTML = '';
+
+                if (markerStats.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                                No marker statistics available
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    markerStats.forEach(stat => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-user-shield text-gray-400"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">${stat.adminName}</div>
+                                        <div class="text-sm text-gray-500">${stat.adminEmail}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">${stat.totalMarkers}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">${stat.lastMarkerDate ? new Date(stat.lastMarkerDate).toLocaleDateString() : 'N/A'}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-2">
+                                    ${Object.entries(stat.markerTypes || {}).map(([type, count]) => `
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            ${type}: ${count}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                // Show error message in the UI
+                const sections = ['totalUsers', 'totalAdmins', 'totalMarkers'];
+                sections.forEach(id => {
+                    document.getElementById(id).textContent = '-';
+                });
+                
+                document.getElementById('usersTable').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-red-500">
+                            Error loading users. Please try again later.
+                        </td>
+                    </tr>
+                `;
+                
+                document.getElementById('markersByAdminTable').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-red-500">
+                            Error loading reports. Please try again later.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+    </script>
+</body>
+</html> 
